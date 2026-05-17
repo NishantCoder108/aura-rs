@@ -127,3 +127,8 @@ On startup the service:
 - This backend is intended to be deployed separately from the frontend
 - It is currently designed for private user libraries only
 - Playlist grouping is label-based rather than using a separate playlist table
+
+- Command for deploying to Hugging Face Spaces:
+```bash
+git push hf master:main
+```

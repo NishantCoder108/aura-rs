@@ -1,6 +1,6 @@
 # --- Stage 1: Fast Build Cache ---
-    # Start a new build stage named 'builder' using the 'rust:1.78-slim' base image
-    FROM rust:1.78-slim AS builder
+# CHANGED: Upgraded from 1.78 to 1.85 to support Rust 2024 Edition
+    FROM rust:1.85-slim AS builder
     # Set the working directory to '/app' in the builder stage
     WORKDIR /app
     
