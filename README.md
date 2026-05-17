@@ -1,3 +1,13 @@
+---
+title: Aura RS Backend
+emoji: 🦀
+colorFrom: red
+colorTo: black
+sdk: docker
+app_port: 7860
+pinned: false
+---
+
 # Aura-rs Backend
 
 Aura-rs Backend is the Rust API service for the Aura-rs application. It provides authentication, playlist-label management, and YouTube library operations for the React frontend.
