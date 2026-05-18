@@ -4,7 +4,7 @@ use argon2::{
 };
 use axum::{
     extract::{FromRequestParts, State},
-    http::request::Parts,
+    http::{header, request::Parts},
 };
 use axum_extra::extract::CookieJar;
 use chrono::{Duration, Utc};
@@ -144,18 +144,46 @@ where
         let State(app_state) = State::<AppState>::from_request_parts(parts, state)
             .await
             .map_err(|_| AppError::Internal)?;
-        let jar = CookieJar::from_headers(&parts.headers);
-        let token = jar
-            .get(AUTH_COOKIE_NAME)
-            .ok_or_else(|| AppError::Unauthorized("Authentication required".to_owned()))?
-            .value()
-            .to_owned();
+        let token = extract_bearer_token(parts)?
+            .or_else(|| extract_cookie_token(parts))
+            .ok_or_else(|| AppError::Unauthorized("Authentication required".to_owned()))?;
 
         let user_id = decode_token(&token, &app_state.config.jwt_secret)?;
         let user = load_user(&app_state.pool, user_id).await?;
 
         Ok(Self(user))
     }
+}
+
+fn extract_bearer_token(parts: &Parts) -> AppResult<Option<String>> {
+    let Some(value) = parts.headers.get(header::AUTHORIZATION) else {
+        return Ok(None);
+    };
+
+    let value = value
+        .to_str()
+        .map_err(|_| AppError::Unauthorized("Invalid authorization header".to_owned()))?;
+
+    let Some(token) = value.strip_prefix("Bearer ") else {
+        return Err(AppError::Unauthorized(
+            "Authorization header must use Bearer token format".to_owned(),
+        ));
+    };
+
+    let token = token.trim();
+    if token.is_empty() {
+        return Err(AppError::Unauthorized(
+            "Authorization token cannot be empty".to_owned(),
+        ));
+    }
+
+    Ok(Some(token.to_owned()))
+}
+
+fn extract_cookie_token(parts: &Parts) -> Option<String> {
+    let jar = CookieJar::from_headers(&parts.headers);
+    jar.get(AUTH_COOKIE_NAME)
+        .map(|cookie| cookie.value().to_owned())
 }
 
 #[cfg(test)]

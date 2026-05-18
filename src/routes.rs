@@ -49,6 +49,7 @@ async fn health() -> Json<HealthResponse> {
 #[serde(rename_all = "camelCase")]
 struct AuthResponse {
     user: AuthUser,
+    token: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -88,12 +89,15 @@ async fn signup(
     .map_err(map_database_error)?;
 
     let token = create_token(user.id, &state.config.jwt_secret)?;
-    let jar = jar.add(auth_cookie(token, &state.config));
+    let jar = jar.add(auth_cookie(token.clone(), &state.config));
 
     Ok((
         StatusCode::CREATED,
         jar,
-        Json(AuthResponse { user: user.into() }),
+        Json(AuthResponse {
+            user: user.into(),
+            token: Some(token),
+        }),
     ))
 }
 
@@ -131,9 +135,15 @@ async fn login(
         .map_err(|_| AppError::Unauthorized("Invalid credentials".to_owned()))?;
 
     let token = create_token(user.id, &state.config.jwt_secret)?;
-    let jar = jar.add(auth_cookie(token, &state.config));
+    let jar = jar.add(auth_cookie(token.clone(), &state.config));
 
-    Ok((jar, Json(AuthResponse { user: user.into() })))
+    Ok((
+        jar,
+        Json(AuthResponse {
+            user: user.into(),
+            token: Some(token),
+        }),
+    ))
 }
 
 async fn logout(
@@ -147,7 +157,7 @@ async fn logout(
 }
 
 async fn me(CurrentUser(user): CurrentUser) -> Json<AuthResponse> {
-    Json(AuthResponse { user })
+    Json(AuthResponse { user, token: None })
 }
 
 async fn list_labels(
