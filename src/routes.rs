@@ -4,15 +4,14 @@ use axum::{
     http::StatusCode,
     routing::{get, patch, post},
 };
-use axum_extra::extract::CookieJar;
 use serde::{Deserialize, Serialize};
 use sqlx::{PgPool, postgres::PgDatabaseError};
 use uuid::Uuid;
 
 use crate::{
     auth::{
-        CurrentUser, auth_cookie, clear_auth_cookie, create_token, hash_password, normalize_email,
-        normalize_username, verify_password,
+        CurrentUser, create_token, hash_password, normalize_email, normalize_username,
+        verify_password,
     },
     errors::{AppError, AppResult},
     models::{AuthUser, ItemRecord, LabelSummary, UserRecord},
@@ -63,9 +62,8 @@ struct SignupRequest {
 
 async fn signup(
     State(state): State<AppState>,
-    jar: CookieJar,
     Json(payload): Json<SignupRequest>,
-) -> AppResult<(StatusCode, CookieJar, Json<AuthResponse>)> {
+) -> AppResult<(StatusCode, Json<AuthResponse>)> {
     validate_signup(&payload)?;
 
     let first_name = payload.first_name.trim().to_owned();
@@ -89,11 +87,8 @@ async fn signup(
     .map_err(map_database_error)?;
 
     let token = create_token(user.id, &state.config.jwt_secret)?;
-    let jar = jar.add(auth_cookie(token.clone(), &state.config));
-
     Ok((
         StatusCode::CREATED,
-        jar,
         Json(AuthResponse {
             user: user.into(),
             token: Some(token),
@@ -109,9 +104,8 @@ struct LoginRequest {
 
 async fn login(
     State(state): State<AppState>,
-    jar: CookieJar,
     Json(payload): Json<LoginRequest>,
-) -> AppResult<(CookieJar, Json<AuthResponse>)> {
+) -> AppResult<Json<AuthResponse>> {
     if payload.identifier.trim().is_empty() || payload.password.trim().is_empty() {
         return Err(AppError::BadRequest(
             "Identifier and password are required".to_owned(),
@@ -135,25 +129,14 @@ async fn login(
         .map_err(|_| AppError::Unauthorized("Invalid credentials".to_owned()))?;
 
     let token = create_token(user.id, &state.config.jwt_secret)?;
-    let jar = jar.add(auth_cookie(token.clone(), &state.config));
-
-    Ok((
-        jar,
-        Json(AuthResponse {
-            user: user.into(),
-            token: Some(token),
-        }),
-    ))
+    Ok(Json(AuthResponse {
+        user: user.into(),
+        token: Some(token),
+    }))
 }
 
-async fn logout(
-    State(state): State<AppState>,
-    jar: CookieJar,
-) -> AppResult<(StatusCode, CookieJar)> {
-    Ok((
-        StatusCode::NO_CONTENT,
-        jar.add(clear_auth_cookie(&state.config)),
-    ))
+async fn logout() -> AppResult<StatusCode> {
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn me(CurrentUser(user): CurrentUser) -> Json<AuthResponse> {

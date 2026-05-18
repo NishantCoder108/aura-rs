@@ -11,7 +11,7 @@ use std::time::Duration;
 use axum::Router;
 use config::AppConfig;
 use errors::AppResult;
-use http::header::COOKIE;
+use http::header::{AUTHORIZATION, CONTENT_TYPE};
 use routes::app_router;
 use sqlx::postgres::PgPoolOptions;
 use state::AppState;
@@ -26,8 +26,6 @@ async fn main() -> AppResult<()> {
     let config = AppConfig::from_env()?;
     tracing::info!(
         frontend_origin = %config.frontend_origin,
-        cookie_secure = config.cookie_secure,
-        cookie_same_site = ?config.cookie_same_site,
         "loaded backend configuration"
     );
     let pool = PgPoolOptions::new()
@@ -45,8 +43,7 @@ async fn main() -> AppResult<()> {
                 .parse::<http::HeaderValue>()
                 .map_err(|_| errors::AppError::Config("Invalid FRONTEND_ORIGIN".to_owned()))?,
         )
-        .allow_credentials(true)
-        .allow_headers([http::header::CONTENT_TYPE, COOKIE])
+        .allow_headers([CONTENT_TYPE, AUTHORIZATION])
         .allow_methods([
             http::Method::GET,
             http::Method::POST,

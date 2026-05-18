@@ -1,7 +1,5 @@
 use std::{env, net::SocketAddr};
 
-use axum_extra::extract::cookie::SameSite;
-
 use crate::errors::{AppError, AppResult};
 
 #[derive(Clone, Debug)]
@@ -10,8 +8,6 @@ pub struct AppConfig {
     pub jwt_secret: String,
     pub frontend_origin: String,
     pub address: SocketAddr,
-    pub cookie_secure: bool,
-    pub cookie_same_site: SameSite,
 }
 
 impl AppConfig {
@@ -27,25 +23,6 @@ impl AppConfig {
             .and_then(|value| value.parse::<u16>().ok())
             .unwrap_or(8080);
         let host = env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_owned());
-        let cookie_secure = env::var("COOKIE_SECURE")
-            .ok()
-            .map(|value| matches!(value.as_str(), "1" | "true" | "TRUE" | "True"))
-            .unwrap_or_else(|| {
-                env::var("APP_ENV")
-                    .map(|value| value.eq_ignore_ascii_case("production"))
-                    .unwrap_or(false)
-            });
-        let cookie_same_site = env::var("COOKIE_SAME_SITE")
-            .ok()
-            .map(|value| parse_same_site(&value))
-            .transpose()?
-            .unwrap_or_else(|| {
-                if cookie_secure {
-                    SameSite::None
-                } else {
-                    SameSite::Lax
-                }
-            });
 
         let address = format!("{host}:{port}")
             .parse()
@@ -56,19 +33,6 @@ impl AppConfig {
             jwt_secret,
             frontend_origin,
             address,
-            cookie_secure,
-            cookie_same_site,
         })
-    }
-}
-
-fn parse_same_site(value: &str) -> AppResult<SameSite> {
-    match value.trim().to_ascii_lowercase().as_str() {
-        "lax" => Ok(SameSite::Lax),
-        "strict" => Ok(SameSite::Strict),
-        "none" => Ok(SameSite::None),
-        _ => Err(AppError::Config(
-            "COOKIE_SAME_SITE must be one of: lax, strict, none".to_owned(),
-        )),
     }
 }

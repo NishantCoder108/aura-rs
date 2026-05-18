@@ -6,22 +6,17 @@ use axum::{
     extract::{FromRequestParts, State},
     http::{header, request::Parts},
 };
-use axum_extra::extract::CookieJar;
 use chrono::{Duration, Utc};
 use jsonwebtoken::{Algorithm, DecodingKey, EncodingKey, Header, Validation, decode, encode};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
-use time::{Duration as TimeDuration, OffsetDateTime};
 use uuid::Uuid;
 
 use crate::{
-    config::AppConfig,
     errors::{AppError, AppResult},
     models::{AuthUser, UserRecord},
     state::AppState,
 };
-
-pub const AUTH_COOKIE_NAME: &str = "urlvibe_token";
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
@@ -92,31 +87,6 @@ pub fn decode_token(token: &str, secret: &str) -> AppResult<Uuid> {
         .map_err(|_| AppError::Unauthorized("Authentication failed".to_owned()))
 }
 
-pub fn auth_cookie(
-    token: String,
-    config: &AppConfig,
-) -> axum_extra::extract::cookie::Cookie<'static> {
-    axum_extra::extract::cookie::Cookie::build((AUTH_COOKIE_NAME, token))
-        .path("/")
-        .http_only(true)
-        .same_site(config.cookie_same_site)
-        .secure(config.cookie_secure)
-        .max_age(TimeDuration::days(7))
-        .expires(OffsetDateTime::now_utc() + TimeDuration::days(7))
-        .build()
-}
-
-pub fn clear_auth_cookie(config: &AppConfig) -> axum_extra::extract::cookie::Cookie<'static> {
-    axum_extra::extract::cookie::Cookie::build((AUTH_COOKIE_NAME, ""))
-        .path("/")
-        .http_only(true)
-        .same_site(config.cookie_same_site)
-        .secure(config.cookie_secure)
-        .max_age(TimeDuration::seconds(0))
-        .expires(OffsetDateTime::now_utc() - TimeDuration::days(1))
-        .build()
-}
-
 async fn load_user(pool: &PgPool, user_id: Uuid) -> AppResult<AuthUser> {
     let user = sqlx::query_as::<_, UserRecord>(
         r#"
@@ -145,7 +115,6 @@ where
             .await
             .map_err(|_| AppError::Internal)?;
         let token = extract_bearer_token(parts)?
-            .or_else(|| extract_cookie_token(parts))
             .ok_or_else(|| AppError::Unauthorized("Authentication required".to_owned()))?;
 
         let user_id = decode_token(&token, &app_state.config.jwt_secret)?;
@@ -178,12 +147,6 @@ fn extract_bearer_token(parts: &Parts) -> AppResult<Option<String>> {
     }
 
     Ok(Some(token.to_owned()))
-}
-
-fn extract_cookie_token(parts: &Parts) -> Option<String> {
-    let jar = CookieJar::from_headers(&parts.headers);
-    jar.get(AUTH_COOKIE_NAME)
-        .map(|cookie| cookie.value().to_owned())
 }
 
 #[cfg(test)]
