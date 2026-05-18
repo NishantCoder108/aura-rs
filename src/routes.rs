@@ -88,7 +88,7 @@ async fn signup(
     .map_err(map_database_error)?;
 
     let token = create_token(user.id, &state.config.jwt_secret)?;
-    let jar = jar.add(auth_cookie(token, state.config.cookie_secure));
+    let jar = jar.add(auth_cookie(token, &state.config));
 
     Ok((
         StatusCode::CREATED,
@@ -131,7 +131,7 @@ async fn login(
         .map_err(|_| AppError::Unauthorized("Invalid credentials".to_owned()))?;
 
     let token = create_token(user.id, &state.config.jwt_secret)?;
-    let jar = jar.add(auth_cookie(token, state.config.cookie_secure));
+    let jar = jar.add(auth_cookie(token, &state.config));
 
     Ok((jar, Json(AuthResponse { user: user.into() })))
 }
@@ -142,7 +142,7 @@ async fn logout(
 ) -> AppResult<(StatusCode, CookieJar)> {
     Ok((
         StatusCode::NO_CONTENT,
-        jar.add(clear_auth_cookie(state.config.cookie_secure)),
+        jar.add(clear_auth_cookie(&state.config)),
     ))
 }
 

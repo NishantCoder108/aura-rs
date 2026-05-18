@@ -1,5 +1,7 @@
 use std::{env, net::SocketAddr};
 
+use axum_extra::extract::cookie::SameSite;
+
 use crate::errors::{AppError, AppResult};
 
 #[derive(Clone, Debug)]
@@ -9,6 +11,7 @@ pub struct AppConfig {
     pub frontend_origin: String,
     pub address: SocketAddr,
     pub cookie_secure: bool,
+    pub cookie_same_site: SameSite,
 }
 
 impl AppConfig {
@@ -32,6 +35,17 @@ impl AppConfig {
                     .map(|value| value.eq_ignore_ascii_case("production"))
                     .unwrap_or(false)
             });
+        let cookie_same_site = env::var("COOKIE_SAME_SITE")
+            .ok()
+            .map(|value| parse_same_site(&value))
+            .transpose()?
+            .unwrap_or_else(|| {
+                if cookie_secure {
+                    SameSite::None
+                } else {
+                    SameSite::Lax
+                }
+            });
 
         let address = format!("{host}:{port}")
             .parse()
@@ -43,6 +57,18 @@ impl AppConfig {
             frontend_origin,
             address,
             cookie_secure,
+            cookie_same_site,
         })
+    }
+}
+
+fn parse_same_site(value: &str) -> AppResult<SameSite> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "lax" => Ok(SameSite::Lax),
+        "strict" => Ok(SameSite::Strict),
+        "none" => Ok(SameSite::None),
+        _ => Err(AppError::Config(
+            "COOKIE_SAME_SITE must be one of: lax, strict, none".to_owned(),
+        )),
     }
 }

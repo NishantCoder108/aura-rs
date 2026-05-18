@@ -15,6 +15,7 @@ use time::{Duration as TimeDuration, OffsetDateTime};
 use uuid::Uuid;
 
 use crate::{
+    config::AppConfig,
     errors::{AppError, AppResult},
     models::{AuthUser, UserRecord},
     state::AppState,
@@ -91,35 +92,26 @@ pub fn decode_token(token: &str, secret: &str) -> AppResult<Uuid> {
         .map_err(|_| AppError::Unauthorized("Authentication failed".to_owned()))
 }
 
-pub fn auth_cookie(token: String, secure: bool) -> axum_extra::extract::cookie::Cookie<'static> {
-    let same_site = if secure {
-        axum_extra::extract::cookie::SameSite::None
-    } else {
-        axum_extra::extract::cookie::SameSite::Lax
-    };
-
+pub fn auth_cookie(
+    token: String,
+    config: &AppConfig,
+) -> axum_extra::extract::cookie::Cookie<'static> {
     axum_extra::extract::cookie::Cookie::build((AUTH_COOKIE_NAME, token))
         .path("/")
         .http_only(true)
-        .same_site(same_site)
-        .secure(secure)
+        .same_site(config.cookie_same_site)
+        .secure(config.cookie_secure)
         .max_age(TimeDuration::days(7))
         .expires(OffsetDateTime::now_utc() + TimeDuration::days(7))
         .build()
 }
 
-pub fn clear_auth_cookie(secure: bool) -> axum_extra::extract::cookie::Cookie<'static> {
-    let same_site = if secure {
-        axum_extra::extract::cookie::SameSite::None
-    } else {
-        axum_extra::extract::cookie::SameSite::Lax
-    };
-
+pub fn clear_auth_cookie(config: &AppConfig) -> axum_extra::extract::cookie::Cookie<'static> {
     axum_extra::extract::cookie::Cookie::build((AUTH_COOKIE_NAME, ""))
         .path("/")
         .http_only(true)
-        .same_site(same_site)
-        .secure(secure)
+        .same_site(config.cookie_same_site)
+        .secure(config.cookie_secure)
         .max_age(TimeDuration::seconds(0))
         .expires(OffsetDateTime::now_utc() - TimeDuration::days(1))
         .build()
