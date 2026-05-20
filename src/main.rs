@@ -63,7 +63,7 @@ async fn main() -> AppResult<()> {
         .layer(cors);
 
     let listener = tokio::net::TcpListener::bind(config.address).await?;
-    tracing::info!("urlvibe-rs listening on {}", config.address);
+    tracing::info!("aura-rs listening on {}", config.address);
 
     axum::serve(listener, app).await.map_err(|error| {
         tracing::error!("server error: {error}");
@@ -75,7 +75,7 @@ fn init_tracing() {
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "urlvibe_rs=debug,tower_http=info".into()),
+                .unwrap_or_else(|_| "aura_rs=debug,tower_http=info".into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
