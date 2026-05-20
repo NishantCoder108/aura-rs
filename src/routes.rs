@@ -18,21 +18,26 @@ use crate::{
     state::AppState,
     youtube::extract_video_id,
 };
-
 pub fn app_router() -> Router<AppState> {
+    let labels_router = Router::new()
+        .route("/", get(list_labels))
+        .route("/{label}/rename", patch(rename_label));
+
+    let items_router = Router::new()
+        .route("/", get(list_items).post(create_item))
+        .route("/{item_id}", patch(update_item).delete(delete_item));
+
+    let user_router = Router::new()
+        .route("/signup", post(signup))
+        .route("/login", post(login))
+        .route("/logout", post(logout))
+        .route("/me", get(me));
+
     Router::new()
-        .route("/health", get(health))
-        .route("/api/auth/signup", post(signup))
-        .route("/api/auth/login", post(login))
-        .route("/api/auth/logout", post(logout))
-        .route("/api/auth/me", get(me))
-        .route("/api/labels", get(list_labels))
-        .route("/api/items", get(list_items).post(create_item))
-        .route(
-            "/api/items/{item_id}",
-            patch(update_item).delete(delete_item),
-        )
-        .route("/api/labels/{label}/rename", patch(rename_label))
+        .nest("/api/auth", user_router)
+        .nest("/api/items", items_router)
+        .nest("/api/labels", labels_router)
+        .route("/api/health", get(health))
 }
 
 #[derive(Serialize)]
@@ -194,7 +199,7 @@ async fn list_items(
             .fetch_all(&pool)
             .await?
         }
-        (Some("favorites"), None) => {
+        (Some("favorites"), None) => {  
             sqlx::query_as::<_, ItemRecord>(
                 r#"
                 SELECT id, user_id, youtube_url, youtube_video_id, title, label, is_favorite, created_at, updated_at
