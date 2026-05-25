@@ -8,10 +8,11 @@ mod youtube;
 
 use std::time::Duration;
 
-use axum::Router;
+use axum::{Router, http::header::{CONTENT_TYPE, AUTHORIZATION}};
 use config::AppConfig;
 use errors::AppResult;
-use http::header::{AUTHORIZATION, CONTENT_TYPE};
+// use http::header::{AUTHORIZATION, CONTENT_TYPE};
+
 use routes::app_router;
 use sqlx::postgres::PgPoolOptions;
 use state::AppState;
