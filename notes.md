@@ -28,3 +28,7 @@
   ```bash
     git push hf master:main
   ```
+
+
+### Docker Stuff:
+docker exec -it awesome_poincare psql -U taskuser -d urlvibe
