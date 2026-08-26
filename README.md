@@ -8,9 +8,9 @@ app_port: 7860
 pinned: false
 ---
 
-# Aura-rs Backend
+# Zenplay Backend
 
-Aura-rs Backend is the Rust API service for the Aura-rs application. It provides authentication, playlist-label management, and YouTube library operations for the React frontend.
+Zenplay Backend is the Rust API service for the Aura-rs application. It provides authentication, playlist-label management, and YouTube library operations for the React frontend.
 
 The service is built with `Axum` and `Tokio`, uses `PostgreSQL` via `sqlx`, and is designed to run against a Neon database. It stores user accounts, saved YouTube items, favorite status, and playlist labels inferred from item rows.
 
